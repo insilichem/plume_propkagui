@@ -9,7 +9,10 @@ import Tkinter as tk
 import chimera
 from OpenSave import osTemporaryFile
 # Additional 3rd parties
-import propka
+try:
+    import propka
+except ImportError:
+    raise chimera.UserError("PropKa is not installed!")
 # Own
 
 
@@ -28,28 +31,27 @@ class Controller(object):
     """
 
     def __init__(self, gui, model, *args, **kwargs):
-        self.molecules_chimera_to_propka = {}
-        self.molecules_propka_to_chimera = {}
+        self.gui = gui
+        self.model = model
 
     def run(self):
-        cli_args = self.optional_arguments()
+        cli_args = self.optional_arguments
         for molecule in self.molecules:
             self.run_single(molecule, cli_args)
 
     def run_single(self, molecule, options):
         pdb = self.write_pdb(molecule)
         results = propka_run(pdb, options)
+        print(results)
+
+    def connect_callbacks(self):
+        pass
 
     @property
     def molecules(self):
-        return self.gui.molecules_list.getvalue()
+        return self.gui.molecules.getvalue()
 
-    def write_pdb(self, molecule, path=None):
-        if path is None:
-            path = osTemporaryFile(suffix='.pdb')
-        chimera.pdbWrite([molecule], filename=path)
-        return path
-
+    @property
     def optional_arguments(self):
         args = []
         if self.model.ph:
@@ -81,6 +83,13 @@ class Controller(object):
             args.append(self.model.chains)
 
         return args
+
+    @staticmethod
+    def write_pdb(molecule, path=None):
+        if path is None:
+            path = osTemporaryFile(suffix='.pdb')
+        chimera.pdbWrite([molecule], filename=path)
+        return path
 
 
 class Model(object):
@@ -189,10 +198,18 @@ class Model(object):
 
 def propka_run(pdb, cli_options):
     """
-    Run a PropKa job and get all values back in a programmatic way.
+    Run a PropKa job and get all values back programmatically.
+
+    Parameters
+    ----------
+    pdb : str
+        Path to PDB file that contains the molecule to be analyzed.
+    cli_options : list of str
+        List of arguments that would have been passed in a CLI environment.
     """
     args, _ = propka.lib.loadOptions(*cli_options)
     propka_mol = propka.molecular_container.Molecular_container(pdb, args)
+
     residues_pka, residues_charge = {}, {}
     for conformation in propka_mol.conformations:
         conformation.calculate_pka(propka_mol.version, propka_mol.options)

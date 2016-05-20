@@ -4,14 +4,15 @@
 # Get used to importing this in your Py27 projects!
 from __future__ import print_function, division 
 # Python stdlib
-import Tkinter
+import Tkinter as tk
 # Chimera stuff
 import chimera
 from chimera.baseDialog import ModelessDialog
+from chimera.widgets import MoleculeScrolledListBox
 # Additional 3rd parties
 
 # Own
-from core import Controller
+from core import Controller, Model
 
 """
 The gui.py module contains the interface code, and only that. 
@@ -29,6 +30,8 @@ def showUI(callback=None):
     global ui
     if not ui: # Edit this to reflect the name of the class!
         ui = PropKaDialog()
+    model = Model()
+    controller = Controller(gui=ui, model=model)
     ui.enter()
     if callback:
         ui.addCallback(callback)
@@ -50,8 +53,7 @@ class PropKaDialog(ModelessDialog):
 
     def __init__(self, *args, **kwarg):
         # GUI init
-        self.title = 'Plume Blank Dialog'
-        self.controller = None
+        self.title = 'Plume PropKa'
 
         # Fire up
         ModelessDialog.__init__(self)
@@ -63,8 +65,30 @@ class PropKaDialog(ModelessDialog):
         the whole dialog, buttons, textareas and everything.
         """
         # Create main window
-        self.tframe = Tkinter.Frame(parent)
-        self.tframe.pack(expand=True, fill='both')
+        self.canvas = tk.Frame(parent)
+        self.canvas.pack(expand=True, fill='both')
+
+        self.molecules = MoleculeScrolledListBox(self.canvas)
+        self.molecules.grid(row=0, columnspan=2)
+
+        self.cfg_chains = tk.Entry(self.canvas)
+
+        self.cfg_ph = tk.Entry(self.canvas)
+        self.cfg_ph_window = tk.Entry(self.canvas)
+        self.cfg_ph_grid = tk.Entry(self.canvas)
+        self.cfg_ph_reference = tk.Entry(self.canvas)
+        self.cfg_titrate_only = tk.Entry(self.canvas)
+        self.cfg_keep_protons = tk.Checkbutton(self.canvas)
+        self.cfg_mutations = tk.Entry(self.canvas)
+        self.cfg_mutation_method = tk.Entry(self.canvas)
+        self.cfg_mutation_options = tk.Entry(self.canvas)
+
+        for i, attr in enumerate(sorted(self.__dict__)):
+            if attr.startswith('cfg_'):
+                label = attr[4:].replace('_', ' ')
+                tk.Label(self.canvas, text=label).grid(row=i+1, column=0)
+                getattr(self, attr).grid(row=i+1, column=1)
+        
 
     def Apply(self):
         """
