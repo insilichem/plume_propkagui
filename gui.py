@@ -27,8 +27,10 @@ def showUI(callback=None):
     """
     Requested by Chimera way-of-doing-things
     """
+    if chimera.nogui:
+        tk.Tk().withdraw()
     global ui
-    if not ui: # Edit this to reflect the name of the class!
+    if not ui:  # Edit this to reflect the name of the class!
         ui = PropKaDialog()
     model = Model()
     controller = Controller(gui=ui, model=model)
@@ -56,8 +58,16 @@ class PropKaDialog(ModelessDialog):
         self.title = 'Plume PropKa'
 
         # Fire up
-        ModelessDialog.__init__(self)
-        chimera.extension.manager.registerInstance(self)
+        ModelessDialog.__init__(self, resizable=False)
+        if not chimera.nogui:
+            chimera.extension.manager.registerInstance(self)
+
+    def _initialPositionCheck(self, *args):
+        try:
+            ModelessDialog._initialPositionCheck(*args)
+        except Exception as e:
+            if not chimera.nogui:
+                raise e
 
     def fillInUI(self, parent):
         """
@@ -66,10 +76,12 @@ class PropKaDialog(ModelessDialog):
         """
         # Create main window
         self.canvas = tk.Frame(parent)
-        self.canvas.pack(expand=True, fill='both')
+        self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
 
-        self.molecules = MoleculeScrolledListBox(self.canvas)
-        self.molecules.grid(row=0, columnspan=2)
+        molecules_frame = tk.LabelFrame(self.canvas, text='Select a molecule')
+        molecules_frame.grid(row=0, columnspan=2, sticky='ew', padx=5, pady=5)
+        self.molecules = MoleculeScrolledListBox(molecules_frame)
+        self.molecules.pack(expand=True, fill='both', padx=3, pady=3)
 
         self.cfg_chains = tk.Entry(self.canvas)
 
@@ -83,12 +95,23 @@ class PropKaDialog(ModelessDialog):
         self.cfg_mutation_method = tk.Entry(self.canvas)
         self.cfg_mutation_options = tk.Entry(self.canvas)
 
+        labels = {
+            'cfg_ph': 'pH',
+            'cfg_ph_window': 'pH window',
+            'cfg_ph_grid': 'pH grid',
+            'cfg_ph_reference': 'pH reference',
+            'cfg_titrate_only': 'Titrate only',
+            'cfg_keep_protons': 'Keep protons',
+            'cfg_mutations': 'Mutations',
+            'cfg_mutation_method': 'Mutation method',
+            'cfg_mutation_options': 'Mutation options',
+            'cfg_chains': 'Chains'
+        }
         for i, attr in enumerate(sorted(self.__dict__)):
             if attr.startswith('cfg_'):
-                label = attr[4:].replace('_', ' ')
-                tk.Label(self.canvas, text=label).grid(row=i+1, column=0)
-                getattr(self, attr).grid(row=i+1, column=1)
-        
+                name = labels[attr]
+                tk.Label(self.canvas, text=name).grid(row=i+1, column=0, sticky='e', padx=4, pady=1)
+                getattr(self, attr).grid(row=i+1, column=1, padx=4, pady=1, sticky='w')
 
     def Apply(self):
         """
@@ -113,3 +136,6 @@ class PropKaDialog(ModelessDialog):
     # Below this line, implement all your custom methods for the GUI.
     def load_controller(self):
         pass
+
+if __name__ == '__main__':
+    showUI()
