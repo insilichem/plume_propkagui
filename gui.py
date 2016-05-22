@@ -12,7 +12,7 @@ from chimera.widgets import MoleculeScrolledListBox
 # Additional 3rd parties
 
 # Own
-from core import Controller, Model
+from core import Controller, ViewModel
 
 """
 The gui.py module contains the interface code, and only that. 
@@ -32,9 +32,11 @@ def showUI(callback=None):
     global ui
     if not ui:  # Edit this to reflect the name of the class!
         ui = PropKaDialog()
-    model = Model()
+    model = ViewModel(gui=ui)
     controller = Controller(gui=ui, model=model)
     ui.enter()
+    ui.controller = controller
+    controller.connect_model_and_gui()
     if callback:
         ui.addCallback(callback)
 
@@ -56,6 +58,18 @@ class PropKaDialog(ModelessDialog):
     def __init__(self, *args, **kwarg):
         # GUI init
         self.title = 'Plume PropKa'
+
+        # Variables
+        self._ph = tk.DoubleVar()
+        self._ph_window = tk.DoubleVar(), tk.DoubleVar(), tk.DoubleVar()
+        self._ph_grid = tk.DoubleVar(), tk.DoubleVar(), tk.DoubleVar()
+        self._ph_reference = tk.StringVar()
+        self._mutations = tk.StringVar()
+        self._mutations_method = tk.StringVar()
+        self._mutations_options = tk.StringVar()
+        self._titrate = tk.StringVar()
+        self._keep_protons = tk.IntVar()
+        self._chains = tk.StringVar()
 
         # Fire up
         ModelessDialog.__init__(self, resizable=False)
@@ -83,35 +97,49 @@ class PropKaDialog(ModelessDialog):
         self.molecules = MoleculeScrolledListBox(molecules_frame)
         self.molecules.pack(expand=True, fill='both', padx=3, pady=3)
 
-        self.cfg_chains = tk.Entry(self.canvas)
+        self.cfg_chains_frame = tk.Frame(self.canvas)
+        self.cfg_chains = [tk.Entry(self.cfg_chains_frame, textvariable=self._chains, width=15),
+                           tk.Button(self.cfg_chains_frame, text='+')]
 
-        self.cfg_ph = tk.Entry(self.canvas)
-        self.cfg_ph_window = tk.Entry(self.canvas)
-        self.cfg_ph_grid = tk.Entry(self.canvas)
-        self.cfg_ph_reference = tk.Entry(self.canvas)
-        self.cfg_titrate_only = tk.Entry(self.canvas)
-        self.cfg_keep_protons = tk.Checkbutton(self.canvas)
-        self.cfg_mutations = tk.Entry(self.canvas)
-        self.cfg_mutation_method = tk.Entry(self.canvas)
-        self.cfg_mutation_options = tk.Entry(self.canvas)
+        self.cfg_ph = tk.Scale(self.canvas, from_=0, to=14, resolution=0.1, orient='horizontal',
+                               length=163, variable=self._ph)
+        self.cfg_ph_window_frame = tk.Frame(self.canvas)
+        self.cfg_ph_window = [tk.Entry(self.cfg_ph_window_frame, textvariable=var, width=6)
+                              for var in self._ph_window]
+        self.cfg_ph_grid_frame = tk.Frame(self.canvas)
+        self.cfg_ph_grid = [tk.Entry(self.cfg_ph_grid_frame, textvariable=var, width=6)
+                            for var in self._ph_grid]
+        self.cfg_ph_reference = tk.OptionMenu(self.canvas,self._ph_reference, 'neutral', 'low-pH')
 
-        labels = {
-            'cfg_ph': 'pH',
-            'cfg_ph_window': 'pH window',
-            'cfg_ph_grid': 'pH grid',
-            'cfg_ph_reference': 'pH reference',
-            'cfg_titrate_only': 'Titrate only',
-            'cfg_keep_protons': 'Keep protons',
-            'cfg_mutations': 'Mutations',
-            'cfg_mutation_method': 'Mutation method',
-            'cfg_mutation_options': 'Mutation options',
-            'cfg_chains': 'Chains'
+        self.cfg_titrate_frame = tk.Frame(self.canvas)
+        self.cfg_titrate = [tk.Entry(self.cfg_titrate_frame, textvariable=self._titrate, width=15),
+                            tk.Button(self.cfg_titrate_frame, text='+')]
+
+        self.cfg_keep_protons = tk.Checkbutton(self.canvas, variable=self._keep_protons)
+        self.cfg_mutations = tk.Entry(self.canvas, textvariable=self._mutations)
+        self.cfg_mutations_method = tk.OptionMenu(self.canvas, self._mutations_method,
+                                                  'alignment', 'scwrl', 'jackal')
+        self.cfg_mutations_options = tk.Entry(self.canvas, textvariable=self._mutations_options)
+
+        labeled_widgets = {
+            (0, 'cfg_chains_frame'): 'Chains',
+            (1, 'cfg_ph') : 'pH',
+            (2, 'cfg_ph_window_frame') : 'pH window',
+            (3, 'cfg_ph_grid_frame') : 'pH grid',
+            (4, 'cfg_ph_reference') : 'pH reference',
+            (5, 'cfg_titrate_frame') : 'Titrate only',
+            (6, 'cfg_keep_protons') : 'Keep protons',
+            # (7, 'cfg_mutations'): 'Mutations',
+            # (8, 'cfg_mutations_method'): 'Mutation method',
+            # (9, 'cfg_mutations_options'): 'Mutation options',
         }
-        for i, attr in enumerate(sorted(self.__dict__)):
-            if attr.startswith('cfg_'):
-                name = labels[attr]
-                tk.Label(self.canvas, text=name).grid(row=i+1, column=0, sticky='e', padx=4, pady=1)
-                getattr(self, attr).grid(row=i+1, column=1, padx=4, pady=1, sticky='w')
+        for (i, attr), title in sorted(labeled_widgets.items()):
+            tk.Label(self.canvas, text=title).grid(row=i+1, column=0, sticky='e', padx=4, pady=1)
+            getattr(self, attr).grid(row=i+1, column=1, padx=4, pady=1, sticky='w')
+
+        left_packed = self.cfg_ph_window + self.cfg_ph_grid + self.cfg_chains + self.cfg_titrate
+        for widget in left_packed:
+            widget.pack(side='left', padx=1, expand=True, fill='both')
 
     def Apply(self):
         """

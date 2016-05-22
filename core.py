@@ -44,8 +44,25 @@ class Controller(object):
         results = propka_run(pdb, options)
         print(results)
 
-    def connect_callbacks(self):
-        pass
+    def connect_model_and_gui(self):
+        names = ['ph',
+                 'ph_window',
+                 'ph_grid',
+                 'ph_reference',
+                 'mutations',
+                 'mutations_method',
+                 'mutations_options',
+                 'titrate',
+                 'keep_protons',
+                 'chains']
+        for name in names:
+            try:
+                var = getattr(self.model, '_' + name)
+            except AttributeError:
+                pass
+            else:
+                attr = getattr(self, name)
+                var.trace(lambda *args: setattr(self.model, name, var.get()))
 
     @property
     def molecules(self):
@@ -59,23 +76,23 @@ class Controller(object):
             args.append(self.model.ph)
         if self.model.ph_window:
             args.append('-w')
-            args.append(self.model.ph_window)
+            args.append(','.join(self.model.ph_window))
         if self.model.ph_grid:
             args.append('-g')
-            args.append(self.model.ph_grid)
+            args.append(','.join(self.model.ph_grid))
         if self.model.ph_reference:
             args.append('-r')
             args.append(self.model.ph_reference)
         if self.model.mutations:
             args.append('-m')
             args.append(self.model.mutations)
-        if self.model.mutation_method:
-            args.append('--mutator={}'.format(self.model.mutation_method))
-        if self.model.mutation_options:
-            args.append('--mutator-option={}'.format(self.model.mutation_options))
-        if self.model.titrate_only:
+        if self.model.mutations_method:
+            args.append('--mutator={}'.format(self.model.mutations_method))
+        if self.model.mutations_options:
+            args.append('--mutator-option={}'.format(self.model.mutations_options))
+        if self.model.titrate:
             args.append('-i')
-            args.append(self.model.titrate_only)
+            args.append(self.model.titrate)
         if self.model.keep_protons:
             args.append('-k')
         if self.model.chains:
@@ -92,7 +109,7 @@ class Controller(object):
         return path
 
 
-class Model(object):
+class ViewModel(object):
 
     """
     The model controls the data we work with. Normally, it'd be a Chimera molecule
@@ -100,100 +117,110 @@ class Model(object):
     a layer around those to allow the easy access and use to the data contained in
     those files
     """
+    defaults = {
+        'ph': 7.0,
+        'ph_window': [0, 14, 1],
+        'ph_grid': [0, 14, 1],
+        'ph_reference': 'neutral',
+        'mutations': '',
+        'mutations_method': 'alignment',
+        'mutations_options': '',
+        'titrate': '',
+        'keep_protons': True,
+        'chains': '',
+    }
 
-    def __init__(self, *args, **kwargs):
-        self._ph = tk.DoubleVar()
-        self._ph_window = tk.DoubleVar()
-        self._ph_grid = tk.DoubleVar()
-        self._ph_reference = tk.StringVar()
-        self._mutations = tk.StringVar()
-        self._mutation_method = tk.StringVar()
-        self._mutation_options = tk.StringVar()
-        self._titrate_only = tk.StringVar()
-        self._keep_protons = tk.BooleanVar()
-        self._chains = tk.StringVar()
+    def __init__(self, gui, *args, **kwargs):
+        self.gui = gui
+        self.set_defaults()
+
+    def set_defaults(self):
+        for name, value in self.defaults.items():
+            setattr(self, name, value)
 
     @property
     def ph(self):
-        return self._ph.get()
+        return self.gui._ph.get()
 
     @ph.setter
     def ph(self, value):
         value = float(value)
         if 0 <= value <= 14.0:
-            self._ph.set(value)
+            self.gui._ph.set(value)
 
     @property
     def ph_window(self):
-        return self._ph_window.get()
+        return [var.get() for var in self.gui._ph_window]
 
     @ph_window.setter
-    def ph_window(self, value):
-        self._ph_window.set(value)
+    def ph_window(self, values):
+        for var, value in zip(self.gui._ph_window, values):
+            var.set(value)
 
     @property
     def ph_grid(self):
-        return self._ph_grid.get()
+        return [var.get() for var in self.gui._ph_grid]
 
     @ph_grid.setter
-    def ph_grid(self, value):
-        self._ph_grid.set(value)
+    def ph_grid(self, values):
+        for var, value in zip(self.gui._ph_grid, values):
+            var.set(value)
 
     @property
     def ph_reference(self):
-        return self._ph_reference.get()
+        return self.gui._ph_reference.get()
 
     @ph_reference.setter
     def ph_reference(self, value):
-        self._ph_reference.set(value)
+        self.gui._ph_reference.set(value)
 
     @property
     def mutations(self):
-        return self._mutations.get()
+        return self.gui._mutations.get()
 
     @mutations.setter
     def mutations(self, value):
-        self._mutations.set(value)
+        self.gui._mutations.set(value)
 
     @property
-    def mutation_method(self):
-        return self._mutation_method.get()
+    def mutations_method(self):
+        return self.gui._mutations_method.get()
 
-    @mutation_method.setter
-    def mutation_method(self, value):
-        self._mutation_method.set(value)
-
-    @property
-    def mutation_options(self):
-        return self._mutation_options.get()
-
-    @mutation_options.setter
-    def mutation_options(self, value):
-        self._mutation_options.set(value)
+    @mutations_method.setter
+    def mutations_method(self, value):
+        self.gui._mutations_method.set(value)
 
     @property
-    def titrate_only(self):
-        return self._titrate_only.get()
+    def mutations_options(self):
+        return self.gui._mutations_options.get()
 
-    @titrate_only.setter
-    def titrate_only(self, value):
-        self._titrate_only.set(value)
+    @mutations_options.setter
+    def mutations_options(self, value):
+        self.gui._mutations_options.set(value)
+
+    @property
+    def titrate(self):
+        return self.gui._titrate.get()
+
+    @titrate.setter
+    def titrate(self, value):
+        self.gui._titrate.set(value)
 
     @property
     def keep_protons(self):
-        return self._keep_protons.get()
+        return bool(self.gui._keep_protons.get())
 
     @keep_protons.setter
     def keep_protons(self, value):
-        self._keep_protons.set(value)
+        self.gui._keep_protons.set(value)
 
     @property
     def chains(self):
-        return self._chains.get()
+        return self.gui._chains.get()
 
     @chains.setter
     def chains(self, value):
-        self._chains.set(value)
+        self.gui._chains.set(value)
 
 
 def propka_run(pdb, cli_options):
