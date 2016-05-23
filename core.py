@@ -4,17 +4,19 @@
 # Get used to importing this in your Py27 projects!
 from __future__ import print_function, division
 # Python stdlib
-import Tkinter as tk
+import contextlib
 # Chimera stuff
 import chimera
 from OpenSave import osTemporaryFile
 # Additional 3rd parties
 try:
     import propka
-except ImportError:
-    raise chimera.UserError("PropKa is not installed!")
+    import propka.lib
+    import propka.molecular_container
+except ImportError as e :
+    raise chimera.UserError("PropKa is not installed!" + str(e))
 # Own
-
+import gui
 
 """
 This module contains the business logic of your extension. Normally, it should
@@ -30,6 +32,8 @@ class Controller(object):
     or running external programs, are the responsibility of the controller.
     """
 
+    results = {}
+
     def __init__(self, gui, model, *args, **kwargs):
         self.gui = gui
         self.model = model
@@ -37,49 +41,44 @@ class Controller(object):
     def run(self):
         cli_args = self.optional_arguments
         for molecule in self.molecules:
-            self.run_single(molecule, cli_args)
+            self.results[molecule] = results = self.run_single(molecule, cli_args)
+        results_dialog = gui.PropKaResultsDialog(master=self.gui.uiMaster(), molecules=self.molecules)
+        results_dialog.enter()
+        results_dialog.fillInData(results)
+        
 
     def run_single(self, molecule, options):
         pdb = self.write_pdb(molecule)
-        results = propka_run(pdb, options)
-        print(results)
-
-    def connect_model_and_gui(self):
-        names = ['ph',
-                 'ph_window',
-                 'ph_grid',
-                 'ph_reference',
-                 'mutations',
-                 'mutations_method',
-                 'mutations_options',
-                 'titrate',
-                 'keep_protons',
-                 'chains']
+        return propka_run(pdb, options)
+        
+    def set_mvc(self):
+        # Tie model and gui
+        names = ['ph', 'ph_window', 'ph_grid', 'ph_reference', 'mutations', 'chains', 
+                 'mutations_method', 'mutations_options', 'titrate', 'keep_protons']
         for name in names:
-            try:
+            with ignored(AttributeError):
                 var = getattr(self.model, '_' + name)
-            except AttributeError:
-                pass
-            else:
-                attr = getattr(self, name)
                 var.trace(lambda *args: setattr(self.model, name, var.get()))
 
+        # Buttons callbacks
+        self.gui.buttonWidgets['Run'].configure(command=self.run)
+    
     @property
     def molecules(self):
-        return self.gui.molecules.getvalue()
+        return self.gui.molecules.getvalue(),
 
     @property
     def optional_arguments(self):
-        args = []
+        args = ['-q'] # quiet
         if self.model.ph:
             args.append('-o')
             args.append(self.model.ph)
         if self.model.ph_window:
             args.append('-w')
-            args.append(','.join(self.model.ph_window))
+            args.extend(self.model.ph_window)
         if self.model.ph_grid:
             args.append('-g')
-            args.append(','.join(self.model.ph_grid))
+            args.extend(self.model.ph_grid)
         if self.model.ph_reference:
             args.append('-r')
             args.append(self.model.ph_reference)
@@ -105,7 +104,7 @@ class Controller(object):
     def write_pdb(molecule, path=None):
         if path is None:
             path = osTemporaryFile(suffix='.pdb')
-        chimera.pdbWrite([molecule], filename=path)
+        chimera.pdbWrite([molecule], molecule.openState.xform, path)
         return path
 
 
@@ -238,7 +237,7 @@ def propka_run(pdb, cli_options):
     propka_mol = propka.molecular_container.Molecular_container(pdb, args)
 
     residues_pka, residues_charge = {}, {}
-    for conformation in propka_mol.conformations:
+    for name, conformation in propka_mol.conformations.items():
         conformation.calculate_pka(propka_mol.version, propka_mol.options)
         for group in conformation.groups:
             key = group.residue_type, group.atom.resNumb, group.atom.chainID
@@ -256,8 +255,8 @@ def propka_run(pdb, cli_options):
     return {'residues_pka': residues_pka,
             'residues_charge': residues_charge,
             'charge_profile': charge_profile,
-            'folded_pi': folded_pi,
-            'unfolded_pi': unfolded_pi,
+            'pi_folded': folded_pi,
+            'pi_unfolded': unfolded_pi,
             'folding_profile': folding_profile,
             'pH_opt': pH_opt,
             'dG_opt': dG_opt,
@@ -265,3 +264,10 @@ def propka_run(pdb, cli_options):
             'dG_max': dG_max,
             'pH_min': pH_min,
             'pH_max': pH_max}
+
+@contextlib.contextmanager
+def ignored(*exceptions):
+    try:
+        yield
+    except exceptions:
+        pass

@@ -5,12 +5,17 @@
 from __future__ import print_function, division 
 # Python stdlib
 import Tkinter as tk
+from operator import itemgetter
 # Chimera stuff
 import chimera
 from chimera.baseDialog import ModelessDialog
-from chimera.widgets import MoleculeScrolledListBox
+from chimera.widgets import MoleculeScrolledListBox, SortableTable
 # Additional 3rd parties
-
+import matplotlib
+matplotlib.use('TkAgg')
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+from matplotlib import pyplot as plt
 # Own
 from core import Controller, ViewModel
 
@@ -35,8 +40,7 @@ def showUI(callback=None):
     model = ViewModel(gui=ui)
     controller = Controller(gui=ui, model=model)
     ui.enter()
-    ui.controller = controller
-    controller.connect_model_and_gui()
+    controller.set_mvc()
     if callback:
         ui.addCallback(callback)
 
@@ -51,7 +55,7 @@ class PropKaDialog(ModelessDialog):
     claim exclusive usage, use ModalDialog.
     """
 
-    buttons = ('OK', 'Close')
+    buttons = ('Run', 'Close')
     default = None
     help = 'https://www.insilichem.com'
 
@@ -78,7 +82,7 @@ class PropKaDialog(ModelessDialog):
 
     def _initialPositionCheck(self, *args):
         try:
-            ModelessDialog._initialPositionCheck(*args)
+            ModelessDialog._initialPositionCheck(self, *args)
         except Exception as e:
             if not chimera.nogui:
                 raise e
@@ -92,11 +96,13 @@ class PropKaDialog(ModelessDialog):
         self.canvas = tk.Frame(parent)
         self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
 
+        # Molecules
         molecules_frame = tk.LabelFrame(self.canvas, text='Select a molecule')
         molecules_frame.grid(row=0, columnspan=2, sticky='ew', padx=5, pady=5)
         self.molecules = MoleculeScrolledListBox(molecules_frame)
         self.molecules.pack(expand=True, fill='both', padx=3, pady=3)
 
+        # Configuration
         self.cfg_chains_frame = tk.Frame(self.canvas)
         self.cfg_chains = [tk.Entry(self.cfg_chains_frame, textvariable=self._chains, width=15),
                            tk.Button(self.cfg_chains_frame, text='+')]
@@ -141,29 +147,125 @@ class PropKaDialog(ModelessDialog):
         for widget in left_packed:
             widget.pack(side='left', padx=1, expand=True, fill='both')
 
-    def Apply(self):
-        """
-        Default! Triggered action if you click on an Apply button
-        """
-        pass
-
-    def OK(self):
-        """
-        Default! Triggered action if you click on an OK button
-        """
-        self.Apply()
-        self.destroy()
-
     def Close(self):
         """
         Default! Triggered action if you click on the Close button
         """
+        global ui
+        ui = None
         ModelessDialog.Close(self)
         self.destroy()
 
     # Below this line, implement all your custom methods for the GUI.
-    def load_controller(self):
+    def Run(self):
         pass
+
+class PropKaResultsDialog(ModelessDialog):
+
+    buttons = ('Close')
+
+    def __init__(self, parent=None, molecules=None, *args, **kwargs):
+        if molecules:
+            names = ', '.join(m.name for m in molecules)
+            self.title = 'PropKa results for {}'.format(names)
+        else:
+            self.title = 'PropKa results'
+        self.parent = parent
+        ModelessDialog.__init__(self, *args, **kwargs)
+        if not chimera.nogui:
+            chimera.extension.manager.registerInstance(self)
+
+    def _initialPositionCheck(self, *args):
+        try:
+            ModelessDialog._initialPositionCheck(self, *args)
+        except Exception as e:
+            if not chimera.nogui:
+                raise e
+
+    def fillInUI(self, parent):
+        self.canvas = tk.Frame(parent, width=800)
+        self.canvas.pack(expand=True, fill='both', padx=5, pady=5)
+        self.canvas.columnconfigure(0, weight=1)
+
+        self.table_frame = tk.LabelFrame(master=self.canvas, text='Per-residue information')
+        self.table = SortableTable(self.table_frame)
+
+        self.plot_frame = tk.LabelFrame(self.canvas, text='Per-pH information')
+        self.plot_figure = Figure(figsize=(4, 4), dpi=100, facecolor='#D9D9D9')
+        self.plot_widget = FigureCanvasTkAgg(self.plot_figure, master=self.plot_frame)
+        self.plot = self.plot_figure.add_subplot(111)
+
+        self.other_frame = tk.LabelFrame(self.canvas, text='Key pH values')
+
+        # Pack and grid
+        self.table_frame.grid(row=0, columnspan=1, sticky='news', padx=5, pady=5)
+        self.table.pack(expand=True, fill='both', padx=5, pady=5)
+
+        self.other_frame.grid(row=0, column=1, sticky='news', padx=5, pady=5)
+
+        self.plot_frame.grid(row=1, columnspan=2, sticky='news', padx=5, pady=5)
+        self.plot_widget.get_tk_widget().configure(background='#D9D9D9', highlightcolor='#D9D9D9',
+                                                   highlightbackground='#D9D9D9')
+        self.plot_widget.get_tk_widget().pack(expand=True, fill='both')
+
+
+    def fillInData(self, data):
+        # Fill in table
+        self._populate_table(data)
+        self._populate_plot(data)
+        self._populate_other(data)
+
+    def _populate_table(self, data):
+        columns = [('#', itemgetter(0)), ('Residues', itemgetter(1)), 
+                   ('pKa', itemgetter(2)), ('Charge', itemgetter(3))]
+        for column, fetcher in columns:
+            self.table.addColumn(column, fetcher)
+        table_data = []
+        for residue, pka in data['residues_pka'].items():
+            restype, respos, chainid = residue
+            charge = data['residues_charge'][residue]
+            key = ':{}.{} {}'.format(respos, chainid, restype)
+            table_data.append((respos, key, pka, charge))
+        
+        self.table.setData(sorted(table_data))
+        self.table.launch()
+
+    def _populate_plot(self, data):
+        charge_x, charge_y = zip(*data['charge_profile'])[:2]
+        self.plot.plot(charge_x, charge_y, 'b', label='Charge')
+        self.plot.set_xlabel('pH')
+
+        folding_x, folding_y = zip(*data['folding_profile'])
+        self.plot.plot(folding_x, folding_y, 'r', label='dG')
+
+        self.plot_figure.subplots_adjust(bottom=0.15)
+        self.plot.patch.set_visible(False)
+        legend = self.plot.legend(loc='upper right', handlelength=2, fancybox=True)
+        legend.get_frame().set_alpha(0.5)
+        for label in legend.get_texts():
+            label.set_fontsize('small')
+        for label in legend.get_lines():
+            label.set_linewidth(2)  # the legend line width
+        self.plot_widget.show()
+
+
+    def _populate_other(self, data):
+        labels = {
+            'pi_folded': 'pI (folded)',
+            'pi_unfolded': 'pI (unfolded)',
+            'pH_opt': 'Optimum pH',
+            'pH_min': 'Minimum pH',
+            'pH_max': 'Maximum pH',
+            'dG_opt': u'Optimum \u0394G',
+            'dG_min': u'Minimum \u0394G',
+            'dG_max': u'Maximum \u0394G',
+            }
+        
+        for i, (key, label) in enumerate(sorted(labels.items())):
+            tk.Label(self.other_frame, text=label + ':').grid(row=i, column=0, sticky='w',
+                padx=10, pady=5)
+            tk.Label(self.other_frame, text='{:.2f}'.format(data[key])).grid(row=i, column=1, sticky='e',
+                padx=5, pady=5)
 
 if __name__ == '__main__':
     showUI()
