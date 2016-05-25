@@ -10,12 +10,12 @@ from operator import itemgetter
 import chimera
 from chimera.baseDialog import ModelessDialog
 from chimera.widgets import MoleculeScrolledListBox, SortableTable
+from ShowAttr import ShowAttrDialog
 # Additional 3rd parties
 import matplotlib
 matplotlib.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-from matplotlib import pyplot as plt
 # Own
 from core import Controller, ViewModel
 
@@ -163,14 +163,20 @@ class PropKaDialog(ModelessDialog):
 class PropKaResultsDialog(ModelessDialog):
 
     buttons = ('Close')
+    _show_attr_dialog = None
 
     def __init__(self, parent=None, molecules=None, *args, **kwargs):
+        self.molecules = molecules
         if molecules:
             names = ', '.join(m.name for m in molecules)
             self.title = 'PropKa results for {}'.format(names)
         else:
             self.title = 'PropKa results'
+        self._data = None
         self.parent = parent
+
+        self._original_colors = {}
+
         ModelessDialog.__init__(self, *args, **kwargs)
         if not chimera.nogui:
             chimera.extension.manager.registerInstance(self)
@@ -189,21 +195,34 @@ class PropKaResultsDialog(ModelessDialog):
 
         self.table_frame = tk.LabelFrame(master=self.canvas, text='Per-residue information')
         self.table = SortableTable(self.table_frame)
+        self.show_backbone_values = tk.IntVar()
+        show_bb_values_check = tk.Checkbutton(self.table_frame, text='Show backbone values',
+                                              variable=self.show_backbone_values,
+                                              command=self._populate_table)
 
         self.plot_frame = tk.LabelFrame(self.canvas, text='Per-pH information')
         self.plot_figure = Figure(figsize=(4, 4), dpi=100, facecolor='#D9D9D9')
         self.plot_widget = FigureCanvasTkAgg(self.plot_figure, master=self.plot_frame)
         self.plot = self.plot_figure.add_subplot(111)
 
+        self.actions_frame = tk.LabelFrame(self.canvas, text='Actions')
+        self.actions = [tk.Button(self.actions_frame, text='Color by pKa', command=self.color_by_pka),
+                        tk.Button(self.actions_frame, text='Color by charge', command=self.color_by_charge),
+                        tk.Button(self.actions_frame, text='Reset color', command=self.reset_colors)]
+
         self.other_frame = tk.LabelFrame(self.canvas, text='Key pH values')
 
         # Pack and grid
         self.table_frame.grid(row=0, columnspan=1, sticky='news', padx=5, pady=5)
         self.table.pack(expand=True, fill='both', padx=5, pady=5)
+        show_bb_values_check.pack(expand=True, fill='both', padx=5, pady=5)
 
-        self.other_frame.grid(row=0, column=1, sticky='news', padx=5, pady=5)
+        self.actions_frame.grid(row=0, column=1, sticky='news', padx=5, pady=5)
+        for button in self.actions:
+            button.pack(padx=5, pady=5)
+        self.other_frame.grid(row=0, column=2, sticky='news', padx=5, pady=5)
 
-        self.plot_frame.grid(row=1, columnspan=2, sticky='news', padx=5, pady=5)
+        self.plot_frame.grid(row=1, columnspan=3, sticky='news', padx=5, pady=5)
         self.plot_widget.get_tk_widget().configure(background='#D9D9D9', highlightcolor='#D9D9D9',
                                                    highlightbackground='#D9D9D9')
         self.plot_widget.get_tk_widget().pack(expand=True, fill='both')
@@ -211,11 +230,17 @@ class PropKaResultsDialog(ModelessDialog):
 
     def fillInData(self, data):
         # Fill in table
+        self._data = data
         self._populate_table(data)
         self._populate_plot(data)
         self._populate_other(data)
 
-    def _populate_table(self, data):
+    def _populate_table(self, data=None, show_backbone=None):
+        if data is None:
+            data = self._data
+        if show_backbone is None:
+            show_backbone = self.show_backbone_values.get()
+
         columns = [('#', itemgetter(0)), ('Residues', itemgetter(1)), 
                    ('pKa', itemgetter(2)), ('Charge', itemgetter(3))]
         for column, fetcher in columns:
@@ -223,12 +248,17 @@ class PropKaResultsDialog(ModelessDialog):
         table_data = []
         for residue, pka in data['residues_pka'].items():
             restype, respos, chainid = residue
+            if not show_backbone and restype in ('BBC', 'BBN'):
+                continue
             charge = data['residues_charge'][residue]
             key = ':{}.{} {}'.format(respos, chainid, restype)
             table_data.append((respos, key, pka, charge))
         
         self.table.setData(sorted(table_data))
-        self.table.launch()
+        try: 
+            self.table.launch()
+        except tk.TclError: 
+            self.table.refresh(rebuild=True)
 
     def _populate_plot(self, data):
         charge_x, charge_y = zip(*data['charge_profile'])[:2]
@@ -262,10 +292,55 @@ class PropKaResultsDialog(ModelessDialog):
             }
         
         for i, (key, label) in enumerate(sorted(labels.items())):
+            value = data.get(key)
+            value = '{:.2f}'.format(value) if value else 'N/A'
             tk.Label(self.other_frame, text=label + ':').grid(row=i, column=0, sticky='w',
                 padx=10, pady=5)
-            tk.Label(self.other_frame, text='{:.2f}'.format(data[key])).grid(row=i, column=1, sticky='e',
+            tk.Label(self.other_frame, text=value).grid(row=i, column=1, sticky='e',
                 padx=5, pady=5)
+
+    def color_by_pka(self):
+        self.set_attr('pka', self._data['residues_pka'])
+        self.render_by_attr('pka', colormap='Rainbow', histogram_values=[0, 14])
+
+    def color_by_charge(self):
+        self.set_attr('charge', self._data['residues_charge'])
+        self.render_by_attr('charge')
+
+    def set_attr(self, attr, values):
+        for key, value in values.items():
+            if isinstance(value, list):
+                try:
+                    value = value[0]
+                except IndexError:
+                    value = None
+            restype, respos, chainid = key
+            selection = chimera.specifier.evalSpec(':{}.{}'.format(respos, chainid))
+            for res in selection.residues():
+                setattr(res, attr, value)
+
+    def render_by_attr(self, attr, colormap='Blue-Red', histogram_values=None):
+        if self._show_attr_dialog is None:
+            self._show_attr_dialog = ShowAttrDialog()
+
+        d = self._show_attr_dialog
+        d.enter()
+        d.configure(models=self.molecules, attrsOf='residues', attrName=attr)
+        if isinstance(histogram_values, list) and len(histogram_values) == 2:
+            d.histogram()['datasource'] = histogram_values + [lambda n: d._makeBins(n, 'Render')]
+        d.colorAtomsVar.set(0)
+        d.setPalette(colormap)
+        d.paletteMenu.setvalue(colormap)
+        d.paletteMenu.invoke()
+        # Let the histogram end its calculations; otherwise errors will ocurr
+        d.uiMaster().after(500, d.Apply)
+
+    def reset_colors(self):
+        for m in self.molecules:
+            for r in m.residues:
+                r.ribbonColor = None
+                # r.ribbonColor.ambientDiffuse = m.color.rgba()[:3]
+
 
 if __name__ == '__main__':
     showUI()
