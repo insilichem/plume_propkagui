@@ -17,6 +17,7 @@ matplotlib.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 # Own
+from plumesuite.ui import PlumeBaseDialog
 from core import Controller, ViewModel
 
 """
@@ -45,7 +46,7 @@ def showUI(callback=None):
         ui.addCallback(callback)
 
 
-class PropKaDialog(ModelessDialog):
+class PropKaDialog(PlumeBaseDialog):
 
     """
     To display a new dialog on the interface, you will normally inherit from
@@ -59,7 +60,7 @@ class PropKaDialog(ModelessDialog):
     default = None
     help = 'https://www.insilichem.com'
 
-    def __init__(self, *args, **kwarg):
+    def __init__(self, *args, **kwargs):
         # GUI init
         self.title = 'Plume PropKa'
 
@@ -76,26 +77,13 @@ class PropKaDialog(ModelessDialog):
         self._chains = tk.StringVar()
 
         # Fire up
-        ModelessDialog.__init__(self, resizable=False)
-        if not chimera.nogui:
-            chimera.extension.manager.registerInstance(self)
+        super(PropKaDialog, self).__init__(self, *args, **kwargs)
 
-    def _initialPositionCheck(self, *args):
-        try:
-            ModelessDialog._initialPositionCheck(self, *args)
-        except Exception as e:
-            if not chimera.nogui:
-                raise e
-
-    def fillInUI(self, parent):
+    def fill_in_ui(self, parent):
         """
         This is the main part of the interface. With this method you code
         the whole dialog, buttons, textareas and everything.
         """
-        # Create main window
-        self.canvas = tk.Frame(parent)
-        self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
-
         # Molecules
         molecules_frame = tk.LabelFrame(self.canvas, text='Select a molecule')
         molecules_frame.grid(row=0, columnspan=2, sticky='ew', padx=5, pady=5)
@@ -147,26 +135,17 @@ class PropKaDialog(ModelessDialog):
         for widget in left_packed:
             widget.pack(side='left', padx=1, expand=True, fill='both')
 
-    def Close(self):
-        """
-        Default! Triggered action if you click on the Close button
-        """
-        global ui
-        ui = None
-        ModelessDialog.Close(self)
-        chimera.extension.manager.deregisterInstance(self)
-        self.destroy()
-
     # Below this line, implement all your custom methods for the GUI.
     def Run(self):
         pass
 
-class PropKaResultsDialog(ModelessDialog):
 
-    buttons = ('Close')
+class PropKaResultsDialog(PlumeBaseDialog):
+
+    buttons = ('Close',)
     _show_attr_dialog = None
 
-    def __init__(self, parent=None, molecules=None, *args, **kwargs):
+    def __init__(self, molecules=None, *args, **kwargs):
         self.molecules = molecules
         if molecules:
             names = ', '.join(m.name for m in molecules)
@@ -174,24 +153,12 @@ class PropKaResultsDialog(ModelessDialog):
         else:
             self.title = 'PropKa results'
         self._data = None
-        self.parent = parent
 
         self._original_colors = {}
 
-        ModelessDialog.__init__(self, *args, **kwargs)
-        if not chimera.nogui:
-            chimera.extension.manager.registerInstance(self)
+        super(NormalModesExtension, self).__init__(self, *args, **kwargs)
 
-    def _initialPositionCheck(self, *args):
-        try:
-            ModelessDialog._initialPositionCheck(self, *args)
-        except Exception as e:
-            if not chimera.nogui:
-                raise e
-
-    def fillInUI(self, parent):
-        self.canvas = tk.Frame(parent, width=800)
-        self.canvas.pack(expand=True, fill='both', padx=5, pady=5)
+    def fill_in_ui(self, parent):
         self.canvas.columnconfigure(0, weight=1)
 
         self.table_frame = tk.LabelFrame(master=self.canvas, text='Per-residue information')
