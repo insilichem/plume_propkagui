@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-# Get used to importing this in your Py27 projects!
+
 from __future__ import print_function, division 
 # Python stdlib
 import Tkinter as tk
+import Pmw
 from operator import itemgetter
 # Chimera stuff
 import chimera
@@ -20,23 +21,13 @@ from matplotlib.figure import Figure
 from plumesuite.ui import PlumeBaseDialog
 from core import Controller, ViewModel
 
-"""
-The gui.py module contains the interface code, and only that. 
-It should only 'draw' the window, and should NOT contain any
-business logic like parsing files or applying modifications
-to the opened molecules. That belongs to core.py.
-"""
 
-# This is a Chimera thing. Do it, and deal with it.
 ui = None
 def showUI(callback=None):
-    """
-    Requested by Chimera way-of-doing-things
-    """
     if chimera.nogui:
         tk.Tk().withdraw()
     global ui
-    if not ui:  # Edit this to reflect the name of the class!
+    if not ui:  
         ui = PropKaDialog()
     model = ViewModel(gui=ui)
     controller = Controller(gui=ui, model=model)
@@ -47,14 +38,6 @@ def showUI(callback=None):
 
 
 class PropKaDialog(PlumeBaseDialog):
-
-    """
-    To display a new dialog on the interface, you will normally inherit from
-    ModelessDialog class of chimera.baseDialog module. Being modeless means
-    you can have this dialog open while using other parts of the interface.
-    If you don't want this behaviour and instead you want your extension to 
-    claim exclusive usage, use ModalDialog.
-    """
 
     buttons = ('Run', 'Close')
     default = None
@@ -80,64 +63,87 @@ class PropKaDialog(PlumeBaseDialog):
         super(PropKaDialog, self).__init__(self, *args, **kwargs)
 
     def fill_in_ui(self, parent):
-        """
-        This is the main part of the interface. With this method you code
-        the whole dialog, buttons, textareas and everything.
-        """
+        self.canvas.columnconfigure(1, weight=1)
         # Molecules
-        molecules_frame = tk.LabelFrame(self.canvas, text='Select a molecule')
-        molecules_frame.grid(row=0, columnspan=2, sticky='ew', padx=5, pady=5)
-        self.molecules = MoleculeScrolledListBox(molecules_frame)
-        self.molecules.pack(expand=True, fill='both', padx=3, pady=3)
+        self.ui_molecules_frame = tk.LabelFrame(self.canvas, text='Select a molecule')
+        self.ui_molecules_frame.grid(row=0, column=0, columnspan=2, sticky='ew', padx=5, pady=5)
+        self.ui_molecules = MoleculeScrolledListBox(self.ui_molecules_frame)
+        self.ui_molecules.pack(expand=True, fill='both', padx=3, pady=3)
 
         # Configuration
-        self.cfg_chains_frame = tk.Frame(self.canvas)
-        self.cfg_chains = [tk.Entry(self.cfg_chains_frame, textvariable=self._chains, width=15),
-                           tk.Button(self.cfg_chains_frame, text='+')]
+        ## Chains
+        self.ui_chains_frame = tk.Frame(self.canvas)
+        self.ui_chains_entry = tk.Entry(self.ui_chains_frame, 
+                textvariable=self._chains, width=15)
+        self.ui_chains_btn = tk.Button(self.ui_chains_frame, text='+')
+        self.ui_chains = [self.ui_chains_entry, self.ui_chains_btn]
 
-        self.cfg_ph = tk.Scale(self.canvas, from_=0, to=14, resolution=0.1, orient='horizontal',
+        ## pH
+        self.ui_ph = tk.Scale(self.canvas, from_=0, to=14, resolution=0.1, orient='horizontal',
                                length=163, variable=self._ph)
-        self.cfg_ph_window_frame = tk.Frame(self.canvas)
-        self.cfg_ph_window = [tk.Entry(self.cfg_ph_window_frame, textvariable=var, width=6)
-                              for var in self._ph_window]
-        self.cfg_ph_grid_frame = tk.Frame(self.canvas)
-        self.cfg_ph_grid = [tk.Entry(self.cfg_ph_grid_frame, textvariable=var, width=6)
-                            for var in self._ph_grid]
-        self.cfg_ph_reference = tk.OptionMenu(self.canvas,self._ph_reference, 'neutral', 'low-pH')
+        self.ui_ph_window_frame = tk.Frame(self.canvas)
+        self.ui_ph_window_0 = tk.Entry(self.ui_ph_window_frame, 
+                                        textvariable=self._ph_window[0], width=6)
+        self.ui_ph_window_1 = tk.Entry(self.ui_ph_window_frame, 
+                                        textvariable=self._ph_window[1], width=6)
+        self.ui_ph_window_2 = tk.Entry(self.ui_ph_window_frame, 
+                                        textvariable=self._ph_window[2], width=6)
+        self.ui_ph_window = [self.ui_ph_window_0, self.ui_ph_window_1, self.ui_ph_window_2]                     
+        
+        self.ui_ph_grid_frame = tk.Frame(self.canvas)
+        self.ui_ph_grid_0 = tk.Entry(self.ui_ph_grid_frame, 
+                                    textvariable=self._ph_grid[0], width=6)
+        self.ui_ph_grid_1 = tk.Entry(self.ui_ph_grid_frame, 
+                                    textvariable=self._ph_grid[1], width=6)
+        self.ui_ph_grid_2 = tk.Entry(self.ui_ph_grid_frame, 
+                                    textvariable=self._ph_grid[2], width=6)
+        self.ui_ph_grid = [self.ui_ph_grid_0, self.ui_ph_grid_1, self.ui_ph_grid_2]
+        self.ui_ph_reference = Pmw.OptionMenu(self.canvas, 
+                                    menubutton_textvariable=self._ph_reference,
+                                    items=['neutral', 'low-pH'])
+ 
+        self.ui_titrate_frame = tk.Frame(self.canvas)
+        self.ui_titrate_entry = tk.Entry(self.ui_titrate_frame, textvariable=self._titrate, width=15)
+        self.ui_titrate_btn = tk.Button(self.ui_titrate_frame, text='+')
+        self.ui_titrate = [self.ui_titrate_entry, self.ui_titrate_btn]
 
-        self.cfg_titrate_frame = tk.Frame(self.canvas)
-        self.cfg_titrate = [tk.Entry(self.cfg_titrate_frame, textvariable=self._titrate, width=15),
-                            tk.Button(self.cfg_titrate_frame, text='+')]
-
-        self.cfg_keep_protons = tk.Checkbutton(self.canvas, variable=self._keep_protons)
-        self.cfg_mutations = tk.Entry(self.canvas, textvariable=self._mutations)
-        self.cfg_mutations_method = tk.OptionMenu(self.canvas, self._mutations_method,
+        self.ui_keep_protons = tk.Checkbutton(self.canvas, variable=self._keep_protons,
+                                              anchor='w')
+        self.ui_mutations = tk.Entry(self.canvas, textvariable=self._mutations)
+        self.ui_mutations_method = tk.OptionMenu(self.canvas, self._mutations_method,
                                                   'alignment', 'scwrl', 'jackal')
-        self.cfg_mutations_options = tk.Entry(self.canvas, textvariable=self._mutations_options)
+        self.ui_mutations_options = tk.Entry(self.canvas, textvariable=self._mutations_options)
 
         labeled_widgets = {
-            (0, 'cfg_chains_frame'): 'Chains',
-            (1, 'cfg_ph') : 'pH',
-            (2, 'cfg_ph_window_frame') : 'pH window',
-            (3, 'cfg_ph_grid_frame') : 'pH grid',
-            (4, 'cfg_ph_reference') : 'pH reference',
-            (5, 'cfg_titrate_frame') : 'Titrate only',
-            (6, 'cfg_keep_protons') : 'Keep protons',
-            # (7, 'cfg_mutations'): 'Mutations',
-            # (8, 'cfg_mutations_method'): 'Mutation method',
-            # (9, 'cfg_mutations_options'): 'Mutation options',
+            (0, 'ui_chains_frame'): 'Chains',
+            (1, 'ui_ph') : 'pH',
+            (2, 'ui_ph_window_frame') : 'pH window',
+            (3, 'ui_ph_grid_frame') : 'pH grid',
+            (4, 'ui_ph_reference') : 'pH reference',
+            (5, 'ui_titrate_frame') : 'Titrate only',
+            (6, 'ui_keep_protons') : 'Keep protons',
+            # (7, 'ui_mutations'): 'Mutations',
+            # (8, 'ui_mutations_method'): 'Mutation method',
+            # (9, 'ui_mutations_options'): 'Mutation options',
         }
         for (i, attr), title in sorted(labeled_widgets.items()):
             tk.Label(self.canvas, text=title).grid(row=i+1, column=0, sticky='e', padx=4, pady=1)
-            getattr(self, attr).grid(row=i+1, column=1, padx=4, pady=1, sticky='w')
+            getattr(self, attr).grid(row=i+1, column=1, padx=4, pady=1, sticky='we')
 
-        left_packed = self.cfg_ph_window + self.cfg_ph_grid + self.cfg_chains + self.cfg_titrate
+        left_packed = self.ui_ph_window + self.ui_ph_grid + self.ui_chains + self.ui_titrate
         for widget in left_packed:
-            widget.pack(side='left', padx=1, expand=True, fill='both')
+            expand, fill = True, 'both'
+            if isinstance(widget, tk.Button):
+                expand, fill = False, None
+            widget.pack(side='left', padx=1, expand=expand, fill=fill)
 
-    # Below this line, implement all your custom methods for the GUI.
     def Run(self):
         pass
+
+    def Close(self):
+        global ui
+        ui = None
+        super(PropKaDialog, self).Close()
 
 
 class PropKaResultsDialog(PlumeBaseDialog):
@@ -156,41 +162,44 @@ class PropKaResultsDialog(PlumeBaseDialog):
 
         self._original_colors = {}
 
-        super(NormalModesExtension, self).__init__(self, *args, **kwargs)
+        super(PropKaResultsDialog, self).__init__(self, *args, **kwargs)
 
     def fill_in_ui(self, parent):
         self.canvas.columnconfigure(0, weight=1)
 
-        self.table_frame = tk.LabelFrame(master=self.canvas, text='Per-residue information')
-        self.table = SortableTable(self.table_frame)
-        self.show_backbone_values = tk.IntVar()
-        show_bb_values_check = tk.Checkbutton(self.table_frame, text='Show backbone values',
-                                              variable=self.show_backbone_values,
+        self.ui_table_frame = tk.LabelFrame(master=self.canvas, text='Per-residue information')
+        self.ui_table = SortableTable(self.ui_table_frame)
+        self.var_show_backbone_values = tk.IntVar()
+        self.ui_show_bb_values_check = tk.Checkbutton(self.ui_table_frame, text='Show backbone values',
+                                              variable=self.var_show_backbone_values,
                                               command=self._populate_table)
 
-        self.plot_frame = tk.LabelFrame(self.canvas, text='Per-pH information')
+        self.ui_plot_frame = tk.LabelFrame(self.canvas, text='Per-pH information')
         self.plot_figure = Figure(figsize=(4, 4), dpi=100, facecolor='#D9D9D9')
-        self.plot_widget = FigureCanvasTkAgg(self.plot_figure, master=self.plot_frame)
+        self.plot_widget = FigureCanvasTkAgg(self.plot_figure, master=self.ui_plot_frame)
         self.plot = self.plot_figure.add_subplot(111)
 
-        self.actions_frame = tk.LabelFrame(self.canvas, text='Actions')
-        self.actions = [tk.Button(self.actions_frame, text='Color by pKa', command=self.color_by_pka),
-                        tk.Button(self.actions_frame, text='Color by charge', command=self.color_by_charge),
-                        tk.Button(self.actions_frame, text='Reset color', command=self.reset_colors)]
-
-        self.other_frame = tk.LabelFrame(self.canvas, text='Key pH values')
+        self.ui_actions_frame = tk.LabelFrame(self.canvas, text='Actions')
+        self.ui_actions_0 = tk.Button(self.ui_actions_frame, text='Color by pKa', 
+                                      command=self.color_by_pka)
+        self.ui_actions_1 = tk.Button(self.ui_actions_frame, text='Color by charge', 
+                                      command=self.color_by_charge)
+        self.ui_actions_2 = tk.Button(self.ui_actions_frame, text='Reset color', 
+                                      command=self.reset_colors)
+        self.ui_actions = [self.ui_actions_0, self.ui_actions_1, self.ui_actions_2]
+        self.ui_other_frame = tk.LabelFrame(self.canvas, text='Key pH values')
 
         # Pack and grid
-        self.table_frame.grid(row=0, columnspan=1, sticky='news', padx=5, pady=5)
-        self.table.pack(expand=True, fill='both', padx=5, pady=5)
-        show_bb_values_check.pack(expand=True, fill='both', padx=5, pady=5)
+        self.ui_table_frame.grid(row=0, columnspan=1, sticky='news', padx=5, pady=5)
+        self.ui_table.pack(expand=True, fill='both', padx=5, pady=5)
+        self.ui_show_bb_values_check.pack(expand=True, fill='both', padx=5, pady=5)
 
-        self.actions_frame.grid(row=0, column=1, sticky='news', padx=5, pady=5)
-        for button in self.actions:
+        self.ui_actions_frame.grid(row=0, column=1, sticky='news', padx=5, pady=5)
+        for button in self.ui_actions:
             button.pack(padx=5, pady=5)
-        self.other_frame.grid(row=0, column=2, sticky='news', padx=5, pady=5)
+        self.ui_other_frame.grid(row=0, column=2, sticky='news', padx=5, pady=5)
 
-        self.plot_frame.grid(row=1, columnspan=3, sticky='news', padx=5, pady=5)
+        self.ui_plot_frame.grid(row=1, columnspan=3, sticky='news', padx=5, pady=5)
         self.plot_widget.get_tk_widget().configure(background='#D9D9D9', highlightcolor='#D9D9D9',
                                                    highlightbackground='#D9D9D9')
         self.plot_widget.get_tk_widget().pack(expand=True, fill='both')
@@ -207,12 +216,12 @@ class PropKaResultsDialog(PlumeBaseDialog):
         if data is None:
             data = self._data
         if show_backbone is None:
-            show_backbone = self.show_backbone_values.get()
+            show_backbone = self.var_show_backbone_values.get()
 
         columns = [('#', itemgetter(0)), ('Residues', itemgetter(1)), 
                    ('pKa', itemgetter(2)), ('Charge', itemgetter(3))]
         for column, fetcher in columns:
-            self.table.addColumn(column, fetcher)
+            self.ui_table.addColumn(column, fetcher)
         table_data = []
         for residue, pka in data['residues_pka'].items():
             restype, respos, chainid = residue
@@ -222,11 +231,11 @@ class PropKaResultsDialog(PlumeBaseDialog):
             key = ':{}.{} {}'.format(respos, chainid, restype)
             table_data.append((respos, key, pka, charge))
         
-        self.table.setData(sorted(table_data))
+        self.ui_table.setData(sorted(table_data))
         try: 
-            self.table.launch()
+            self.ui_table.launch()
         except tk.TclError: 
-            self.table.refresh(rebuild=True)
+            self.ui_table.refresh(rebuild=True)
 
     def _populate_plot(self, data):
         charge_x, charge_y = zip(*data['charge_profile'])[:2]
@@ -262,9 +271,9 @@ class PropKaResultsDialog(PlumeBaseDialog):
         for i, (key, label) in enumerate(sorted(labels.items())):
             value = data.get(key)
             value = '{:.2f}'.format(value) if value else 'N/A'
-            tk.Label(self.other_frame, text=label + ':').grid(row=i, column=0, sticky='w',
+            tk.Label(self.ui_other_frame, text=label + ':').grid(row=i, column=0, sticky='w',
                 padx=10, pady=5)
-            tk.Label(self.other_frame, text=value).grid(row=i, column=1, sticky='e',
+            tk.Label(self.ui_other_frame, text=value).grid(row=i, column=1, sticky='e',
                 padx=5, pady=5)
 
     def color_by_pka(self):
