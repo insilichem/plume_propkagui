@@ -60,7 +60,7 @@ class PropKaDialog(PlumeBaseDialog):
         self._chains = tk.StringVar()
 
         # Fire up
-        super(PropKaDialog, self).__init__(self, *args, **kwargs)
+        super(PropKaDialog, self).__init__(*args, **kwargs)
 
     def fill_in_ui(self, parent):
         self.canvas.columnconfigure(1, weight=1)
@@ -162,7 +162,7 @@ class PropKaResultsDialog(PlumeBaseDialog):
 
         self._original_colors = {}
 
-        super(PropKaResultsDialog, self).__init__(self, *args, **kwargs)
+        super(PropKaResultsDialog, self).__init__(*args, **kwargs)
 
     def fill_in_ui(self, parent):
         self.canvas.columnconfigure(0, weight=1)
@@ -170,9 +170,10 @@ class PropKaResultsDialog(PlumeBaseDialog):
         self.ui_table_frame = tk.LabelFrame(master=self.canvas, text='Per-residue information')
         self.ui_table = SortableTable(self.ui_table_frame)
         self.var_show_backbone_values = tk.IntVar()
-        self.ui_show_bb_values_check = tk.Checkbutton(self.ui_table_frame, text='Show backbone values',
-                                              variable=self.var_show_backbone_values,
-                                              command=self._populate_table)
+        self.ui_show_bb_values_check = tk.Checkbutton(self.ui_table_frame, 
+            text='Show backbone values',
+            variable=self.var_show_backbone_values,
+            command=self._populate_table)
 
         self.ui_plot_frame = tk.LabelFrame(self.canvas, text='Per-pH information')
         self.plot_figure = Figure(figsize=(4, 4), dpi=100, facecolor='#D9D9D9')
@@ -204,7 +205,6 @@ class PropKaResultsDialog(PlumeBaseDialog):
                                                    highlightbackground='#D9D9D9')
         self.plot_widget.get_tk_widget().pack(expand=True, fill='both')
 
-
     def fillInData(self, data):
         # Fill in table
         self._data = data
@@ -221,7 +221,7 @@ class PropKaResultsDialog(PlumeBaseDialog):
         columns = [('#', itemgetter(0)), ('Residues', itemgetter(1)), 
                    ('pKa', itemgetter(2)), ('Charge', itemgetter(3))]
         for column, fetcher in columns:
-            self.ui_table.addColumn(column, fetcher)
+            self.ui_table.addColumn(column, fetcher, refresh=False)
         table_data = []
         for residue, pka in data['residues_pka'].items():
             restype, respos, chainid = residue
