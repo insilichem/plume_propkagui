@@ -31,10 +31,10 @@ class Controller(object):
         cli_args = self.optional_arguments
         for molecule in self.molecules:
             self.results[molecule] = results = self.run_single(molecule, cli_args)
-        results_dialog = gui.PropKaResultsDialog(master=self.gui.uiMaster(), molecules=self.molecules)
-        results_dialog.enter()
+        results_dialog = gui.PropKaResultsDialog(master=self.gui.uiMaster(), 
+                                                 molecules=self.molecules)
         results_dialog.fillInData(results)
-        
+        results_dialog.enter()
 
     def run_single(self, molecule, options):
         pdb = self.write_pdb(molecule)
