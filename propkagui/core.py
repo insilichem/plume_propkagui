@@ -5,6 +5,7 @@
 from __future__ import print_function, division
 # Python stdlib
 import contextlib
+import os
 # Chimera stuff
 import chimera
 from OpenSave import osTemporaryFile
@@ -16,6 +17,7 @@ try:
 except ImportError as e :
     raise chimera.UserError("PropKa is not installed!" + str(e))
 # Own
+from libplume.core import ignored, enter_directory
 import gui
 
 
@@ -38,7 +40,9 @@ class Controller(object):
 
     def run_single(self, molecule, options):
         pdb = self.write_pdb(molecule)
-        return propka_run(pdb, options)
+        with enter_directory(os.path.dirname(pdb)):
+            results = propka_run(pdb, options)
+        return results
         
     def set_mvc(self):
         # Tie model and gui
@@ -247,10 +251,3 @@ def propka_run(pdb, cli_options):
             'dG_max': dG_max,
             'pH_min': pH_min,
             'pH_max': pH_max}
-
-@contextlib.contextmanager
-def ignored(*exceptions):
-    try:
-        yield
-    except exceptions:
-        pass
