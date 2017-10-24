@@ -2,7 +2,7 @@
 # encoding: utf-8
 
 
-from __future__ import print_function, division 
+from __future__ import print_function, division
 # Python stdlib
 import Tkinter as tk
 import Pmw
@@ -23,18 +23,16 @@ from core import Controller, ViewModel
 
 
 ui = None
-def showUI(callback=None):
+def showUI():
     if chimera.nogui:
         tk.Tk().withdraw()
     global ui
-    if not ui:  
+    if not ui:
         ui = PropKaDialog()
     model = ViewModel(gui=ui)
     controller = Controller(gui=ui, model=model)
     ui.enter()
     controller.set_mvc()
-    if callback:
-        ui.addCallback(callback)
 
 
 class PropKaDialog(PlumeBaseDialog):
@@ -73,7 +71,7 @@ class PropKaDialog(PlumeBaseDialog):
         # Configuration
         ## Chains
         self.ui_chains_frame = tk.Frame(self.canvas)
-        self.ui_chains_entry = tk.Entry(self.ui_chains_frame, 
+        self.ui_chains_entry = tk.Entry(self.ui_chains_frame,
                 textvariable=self._chains, width=15)
         self.ui_chains_btn = tk.Button(self.ui_chains_frame, text='+')
         self.ui_chains = [self.ui_chains_entry, self.ui_chains_btn]
@@ -82,26 +80,26 @@ class PropKaDialog(PlumeBaseDialog):
         self.ui_ph = tk.Scale(self.canvas, from_=0, to=14, resolution=0.1, orient='horizontal',
                                length=163, variable=self._ph)
         self.ui_ph_window_frame = tk.Frame(self.canvas)
-        self.ui_ph_window_0 = tk.Entry(self.ui_ph_window_frame, 
+        self.ui_ph_window_0 = tk.Entry(self.ui_ph_window_frame,
                                         textvariable=self._ph_window[0], width=6)
-        self.ui_ph_window_1 = tk.Entry(self.ui_ph_window_frame, 
+        self.ui_ph_window_1 = tk.Entry(self.ui_ph_window_frame,
                                         textvariable=self._ph_window[1], width=6)
-        self.ui_ph_window_2 = tk.Entry(self.ui_ph_window_frame, 
+        self.ui_ph_window_2 = tk.Entry(self.ui_ph_window_frame,
                                         textvariable=self._ph_window[2], width=6)
-        self.ui_ph_window = [self.ui_ph_window_0, self.ui_ph_window_1, self.ui_ph_window_2]                     
-        
+        self.ui_ph_window = [self.ui_ph_window_0, self.ui_ph_window_1, self.ui_ph_window_2]
+
         self.ui_ph_grid_frame = tk.Frame(self.canvas)
-        self.ui_ph_grid_0 = tk.Entry(self.ui_ph_grid_frame, 
+        self.ui_ph_grid_0 = tk.Entry(self.ui_ph_grid_frame,
                                     textvariable=self._ph_grid[0], width=6)
-        self.ui_ph_grid_1 = tk.Entry(self.ui_ph_grid_frame, 
+        self.ui_ph_grid_1 = tk.Entry(self.ui_ph_grid_frame,
                                     textvariable=self._ph_grid[1], width=6)
-        self.ui_ph_grid_2 = tk.Entry(self.ui_ph_grid_frame, 
+        self.ui_ph_grid_2 = tk.Entry(self.ui_ph_grid_frame,
                                     textvariable=self._ph_grid[2], width=6)
         self.ui_ph_grid = [self.ui_ph_grid_0, self.ui_ph_grid_1, self.ui_ph_grid_2]
-        self.ui_ph_reference = Pmw.OptionMenu(self.canvas, 
+        self.ui_ph_reference = Pmw.OptionMenu(self.canvas,
                                     menubutton_textvariable=self._ph_reference,
                                     items=['neutral', 'low-pH'])
- 
+
         self.ui_titrate_frame = tk.Frame(self.canvas)
         self.ui_titrate_entry = tk.Entry(self.ui_titrate_frame, textvariable=self._titrate, width=15)
         self.ui_titrate_btn = tk.Button(self.ui_titrate_frame, text='+')
@@ -170,7 +168,7 @@ class PropKaResultsDialog(PlumeBaseDialog):
         self.ui_table_frame = tk.LabelFrame(master=self.canvas, text='Per-residue information')
         self.ui_table = SortableTable(self.ui_table_frame)
         self.var_show_backbone_values = tk.IntVar()
-        self.ui_show_bb_values_check = tk.Checkbutton(self.ui_table_frame, 
+        self.ui_show_bb_values_check = tk.Checkbutton(self.ui_table_frame,
             text='Show backbone values',
             variable=self.var_show_backbone_values,
             command=self._populate_table)
@@ -181,11 +179,11 @@ class PropKaResultsDialog(PlumeBaseDialog):
         self.plot = self.plot_figure.add_subplot(111)
 
         self.ui_actions_frame = tk.LabelFrame(self.canvas, text='Actions')
-        self.ui_actions_0 = tk.Button(self.ui_actions_frame, text='Color by pKa', 
+        self.ui_actions_0 = tk.Button(self.ui_actions_frame, text='Color by pKa',
                                       command=self.color_by_pka)
-        self.ui_actions_1 = tk.Button(self.ui_actions_frame, text='Color by charge', 
+        self.ui_actions_1 = tk.Button(self.ui_actions_frame, text='Color by charge',
                                       command=self.color_by_charge)
-        self.ui_actions_2 = tk.Button(self.ui_actions_frame, text='Reset color', 
+        self.ui_actions_2 = tk.Button(self.ui_actions_frame, text='Reset color',
                                       command=self.reset_colors)
         self.ui_actions = [self.ui_actions_0, self.ui_actions_1, self.ui_actions_2]
         self.ui_other_frame = tk.LabelFrame(self.canvas, text='Key pH values')
@@ -218,7 +216,7 @@ class PropKaResultsDialog(PlumeBaseDialog):
         if show_backbone is None:
             show_backbone = self.var_show_backbone_values.get()
 
-        columns = [('#', itemgetter(0)), ('Residues', itemgetter(1)), 
+        columns = [('#', itemgetter(0)), ('Residues', itemgetter(1)),
                    ('pKa', itemgetter(2)), ('Charge', itemgetter(3))]
         for column, fetcher in columns:
             self.ui_table.addColumn(column, fetcher, refresh=False)
@@ -230,11 +228,11 @@ class PropKaResultsDialog(PlumeBaseDialog):
             charge = data['residues_charge'][residue]
             key = ':{}.{} {}'.format(respos, chainid, restype)
             table_data.append((respos, key, pka, charge))
-        
+
         self.ui_table.setData(sorted(table_data))
-        try: 
+        try:
             self.ui_table.launch()
-        except tk.TclError: 
+        except tk.TclError:
             self.ui_table.refresh(rebuild=True)
 
     def _populate_plot(self, data):
@@ -267,7 +265,7 @@ class PropKaResultsDialog(PlumeBaseDialog):
             'dG_min': u'Minimum \u0394G',
             'dG_max': u'Maximum \u0394G',
             }
-        
+
         for i, (key, label) in enumerate(sorted(labels.items())):
             value = data.get(key)
             value = '{:.2f}'.format(value) if value else 'N/A'
