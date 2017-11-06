@@ -148,6 +148,10 @@ class PropKaResultsDialog(PlumeBaseDialog):
 
     buttons = ('Close',)
     _show_attr_dialog = None
+    help = "https://github.com/insilichem/plume_propkagui"
+    VERSION = '0.0.1'
+    VERSION_URL = "https://api.github.com/repos/insilichem/plume_propkagui/releases/latest"
+
 
     def __init__(self, molecules=None, *args, **kwargs):
         self.molecules = molecules
