@@ -18,7 +18,7 @@ matplotlib.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 # Own
-from libplume.ui import PlumeBaseDialog
+from libtangram.ui import TangramBaseDialog
 from core import Controller, ViewModel
 
 
@@ -35,7 +35,7 @@ def showUI():
     controller.set_mvc()
 
 
-class PropKaDialog(PlumeBaseDialog):
+class PropKaDialog(TangramBaseDialog):
 
     buttons = ('Run', 'Close')
     default = None
@@ -43,7 +43,7 @@ class PropKaDialog(PlumeBaseDialog):
 
     def __init__(self, *args, **kwargs):
         # GUI init
-        self.title = 'Plume PropKa'
+        self.title = 'Tangram PropKa'
 
         # Variables
         self._ph = tk.DoubleVar()
@@ -144,13 +144,13 @@ class PropKaDialog(PlumeBaseDialog):
         super(PropKaDialog, self).Close()
 
 
-class PropKaResultsDialog(PlumeBaseDialog):
+class PropKaResultsDialog(TangramBaseDialog):
 
     buttons = ('Close',)
     _show_attr_dialog = None
-    help = "https://github.com/insilichem/plume_propkagui"
+    help = "https://github.com/insilichem/tangram_propkagui"
     VERSION = '0.0.1'
-    VERSION_URL = "https://api.github.com/repos/insilichem/plume_propkagui/releases/latest"
+    VERSION_URL = "https://api.github.com/repos/insilichem/tangram_propkagui/releases/latest"
 
 
     def __init__(self, molecules=None, *args, **kwargs):

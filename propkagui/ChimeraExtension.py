@@ -2,14 +2,14 @@
 # encoding: utf-8
 
 
-from __future__ import print_function, division 
+from __future__ import print_function, division
 import chimera.extension
 
 
 class PropKaDialog(chimera.extension.EMO):
 
     def name(self):
-        return 'Plume PropKa'
+        return 'Tangram PropKa'
 
     def description(self):
         return "Calculate pKa, pI, charge and folding stabilities for proteins"

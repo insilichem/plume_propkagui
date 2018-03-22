@@ -17,7 +17,7 @@ try:
 except ImportError as e :
     raise chimera.UserError("PropKa is not installed!" + str(e))
 # Own
-from libplume.core import ignored, enter_directory
+from libtangram.core import ignored, enter_directory
 import gui
 
 
@@ -33,7 +33,7 @@ class Controller(object):
         cli_args = self.optional_arguments
         for molecule in self.molecules:
             self.results[molecule] = results = self.run_single(molecule, cli_args)
-        results_dialog = gui.PropKaResultsDialog(master=self.gui.uiMaster(), 
+        results_dialog = gui.PropKaResultsDialog(master=self.gui.uiMaster(),
                                                  molecules=self.molecules)
         results_dialog.fillInData(results)
         results_dialog.enter()
@@ -43,10 +43,10 @@ class Controller(object):
         with enter_directory(os.path.dirname(pdb)):
             results = propka_run(pdb, options)
         return results
-        
+
     def set_mvc(self):
         # Tie model and gui
-        names = ['ph', 'ph_window', 'ph_grid', 'ph_reference', 'mutations', 'chains', 
+        names = ['ph', 'ph_window', 'ph_grid', 'ph_reference', 'mutations', 'chains',
                  'mutations_method', 'mutations_options', 'titrate', 'keep_protons']
         for name in names:
             with ignored(AttributeError):
@@ -55,7 +55,7 @@ class Controller(object):
 
         # Buttons callbacks
         self.gui.buttonWidgets['Run'].configure(command=self.run)
-    
+
     @property
     def molecules(self):
         return self.gui.ui_molecules.getvalue(),
