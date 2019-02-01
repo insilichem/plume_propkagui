@@ -1,0 +1,2 @@
+include versioneer.py
+include propkagui/_version.py
